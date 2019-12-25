@@ -1,36 +1,32 @@
 export default {
-  HAZE: {
-    labelColor: "#FFFFFF",
+  RED: {
+    labelColor: "#ffffff",
     haloColor: "#000000",
     colorRamp: [
       {
-        size: 1,
+        size: 0.5,
         value: "#000000"
       },
       {
         size: 1,
-        value: "#495086"
+        value: "#441807"
       },
       {
         size: 1,
-        value: "#BBC6E9"
+        value: "#BF451C"
       },
       {
         size: 1,
-        value: "#CD8684"
+        value: "#E57D27"
       },
       {
         size: 1,
-        value: "#EDDDC3"
-      },
-      {
-        size: 1,
-        value: "#FDFCE8"
+        value: "#FBA529"
       },
       {
         size: 0,
-        value: "#FEFEFE"
-      },
+        value: "#FFFFFFF"
+      }
     ]
   },
   GREEN: {
@@ -212,34 +208,39 @@ export default {
       }
     ]
   },
-  RED: {
-    labelColor: "#ffffff",
+  HAZE: {
+    labelColor: "#FFFFFF",
     haloColor: "#000000",
     colorRamp: [
       {
-        size: 0.5,
+        size: 1,
         value: "#000000"
       },
       {
         size: 1,
-        value: "#441807"
+        value: "#495086"
       },
       {
         size: 1,
-        value: "#BF451C"
+        value: "#BBC6E9"
       },
       {
         size: 1,
-        value: "#E57D27"
+        value: "#CD8684"
       },
       {
         size: 1,
-        value: "#FBA529"
+        value: "#EDDDC3"
+      },
+      {
+        size: 1,
+        value: "#FDFCE8"
       },
       {
         size: 0,
-        value: "#FFFFFFF"
-      }
+        value: "#FEFEFE"
+      },
     ]
   }
+
 };
