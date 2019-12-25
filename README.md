@@ -1,6 +1,8 @@
 # Map of Mars
 
-This is a visualization of Mars.
+This is interactive map of Mars.
+
+![map of mars](images/map_of_mars_animated.gif)
 
 
 # Local development
