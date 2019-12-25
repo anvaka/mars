@@ -13,8 +13,8 @@ I converted the model into 8 bit, and uploaded it into MapBox studio. The uncorr
 [Gazetteer of Planetary Nomenclature](https://planetarynames.wr.usgs.gov/Page/MARS/target).
 
 To add colors to the map, I had to patch [mapbox-gl-js](https://github.com/anvaka/mapbox-gl-js/tree/color-ramp)
-library. The patch is not supposed to be "production" quality, but might serve as an inspiration for a [long time
-feature request](https://github.com/mapbox/mapbox-gl-js/issues/3889) solution on main mapbox-gl repository.
+library. The patch is not supposed to have high reusability quality, but might serve as an inspiration for a [long time
+feature request](https://github.com/mapbox/mapbox-gl-js/issues/3889) solution on main `mapbox-gl` repository.
 
 # Patronage
 

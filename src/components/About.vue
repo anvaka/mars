@@ -21,6 +21,9 @@
           Stay tuned for updates on <a href='https://twitter.com/anvaka' class='highlighted'>Twitter.</a>
         </li>
         <li>
+          Read the source code on <a href='https://github.com/anvaka/mars' class='highlighted'>GitHub.</a>
+        </li>
+        <li>
           Explore <a href='https://anvaka.github.io/peak-map/'>Peaks on Earth.</a>
         </li>
       </ul>
