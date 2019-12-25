@@ -1,6 +1,6 @@
 # Map of Mars
 
-This is interactive map of Mars: https://anvaka.github.io/mars/
+This is an interactive map of Mars: https://anvaka.github.io/mars/
 
 [![map of mars](images/map_of_mars.png)](https://anvaka.github.io/mars/)
 
