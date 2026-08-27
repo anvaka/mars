@@ -15,7 +15,7 @@
 
       <h3>Bonus</h3>
       <p>After the map is generated you can print it on a mug to create a memorable gift.
-         This would would also support yours humble author of this website :).</p>
+         This would also support your humble author of this website :).</p>
       <ul>
         <li>
           Stay tuned for updates on <a href='https://twitter.com/anvaka' class='highlighted'>Twitter.</a>
