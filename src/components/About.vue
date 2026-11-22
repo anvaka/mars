@@ -21,6 +21,9 @@
           Stay tuned for updates on <a href='https://twitter.com/anvaka' class='highlighted'>Twitter.</a>
         </li>
         <li>
+          See my other projects at <a href='https://anvaka.com' class='highlighted'>anvaka.com</a>
+        </li>
+        <li>
           Read the source code on <a href='https://github.com/anvaka/mars' class='highlighted'>GitHub.</a>
         </li>
         <li>
