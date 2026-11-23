@@ -1,12 +1,35 @@
-# Map of Mars
+# Peaks on Mars
 
-This is an interactive map of Mars: https://anvaka.github.io/mars/
+An interactive map of Mars: https://anvaka.github.io/mars/
 
-[![map of mars](images/map_of_mars.png)](https://anvaka.github.io/mars/)
+[![The map of Mars](images/map_of_mars.png)](https://anvaka.github.io/mars/)
 
-# Details
+## What you can do there
 
-The map was made from a [publicly available digital elevation model](https://astrogeology.usgs.gov/search/map/Mars/Topography/HRSC_MOLA_Blend/Mars_HRSC_MOLA_BlendDEM_Global_200mp_v2). 
+* **Find a place.** Every named crater, mountain and valley of Mars is on the map, two thousand of them, along
+  with the landing sites. Click a name or search for it: its card has a picture and a few sentences from Wikipedia,
+  its size, and its highest and lowest points.
+* **Change the colors.** A click on the elevation legend repaints the planet. One of the themes fills Mars with
+  the ocean it may have had 3.5 billion years ago.
+
+  ![Valles Marineris and the ocean](images/place.jpg)
+
+* **Stand on the surface.** Choose any place, and the website draws the land around you, with the Sun where it
+  is over that place right now. Where Perseverance, Curiosity, Spirit and Opportunity drove, you can look around
+  through their own photos, stop by stop, and listen to what the microphones of Perseverance have recorded.
+
+  ![A stop of Perseverance](images/ground.jpg)
+
+* **Make a poster.** Mars the way it was seen from Earth on a day that matters to you, a month or a year of such
+  days, or a map of a place. Download the picture, or order a print.
+
+  ![A poster with a month of Mars](images/poster.jpg)
+
+A place, a view from the surface and a poster are all kept in the address bar, so each can be shared with a link.
+
+# How it is made
+
+The map was made from a [publicly available digital elevation model](https://astrogeology.usgs.gov/search/map/Mars/Topography/HRSC_MOLA_Blend/Mars_HRSC_MOLA_BlendDEM_Global_200mp_v2).
 Maximum resolution of the model is 200 meters per pixel.
 
 The map is rendered by [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/). Its `color-relief` layer
@@ -210,18 +233,6 @@ Almost nothing of the above is stored in this repository: the routes are request
 visitor's browser, and the photos come from NASA through the worker, which keeps them in the Cloudflare cache.
 The exception is the routes and the lists of photos of Spirit and Opportunity (5MB in `public/data/rovers`).
 
-Without `VITE_DEM_PMTILES` the website falls back to the original 8 bit elevation tiles hosted by MapBox. Open
-http://localhost:8080/tools/compare.html during development to see both side by side.
-
-# Patronage
-
-If you like this work please consider sponsoring the project:
-
-* [Via PayPal](http://paypal.me/anvakos/4)
-* [Via GitHub Sponsors](https://github.com/sponsors/anvaka)
-
-Your support will be used to pay for MapBox hosting services and further development of this project ❤️.
-
 # Local development
 
 ```
@@ -229,16 +240,48 @@ npm install
 npm start
 ```
 
-Note: the code still imports a MapBox token for the fallback elevation tiles, so the file `src/token.js` has to
-exist:
+The dev server always runs on http://localhost:8080. To build the website into the `dist` folder run
+`npm run build`.
+
+The website finds its data by the addresses in the `.env` file. The file is not in the repository, so a copy
+of your own needs one. Every line of it is optional:
+
+| Line | What it is the address of | Without it |
+| --- | --- | --- |
+| `VITE_DEM_PMTILES` | The PMTiles file with the elevation | Nothing to read when the worker does not answer |
+| `VITE_DEM_TILES` | The worker that gives the tiles of that file out | The website reads the file itself, which is slower |
+| `VITE_DEM_DETAIL_TILES` | The detailed elevation of the rover sites, separated by commas | The ground view has the 200 meter elevation everywhere |
+| `VITE_PHOTO_PROXY` | The worker that passes the photos of the rovers along | The ground view has no photos |
+| `VITE_SOUNDS` | The folder with the recordings | They are played from the website of NASA |
+
+With neither of the first two lines the map uses the original 8 bit elevation tiles hosted by MapBox. The code
+imports a MapBox token for them, so the file `src/token.js` has to exist in any case:
 
 ``` js
 export const MAPBOX_TOKEN = '... your mapbox token, or an empty string ...';
 ```
 
-The dev server always runs on http://localhost:8080.
+Open http://localhost:8080/tools/compare.html during development to see the 8 bit and the 16 bit elevation
+side by side.
 
-To build the website into the `dist` folder run `npm run build`.
+# Deployment
+
+```
+sh deploy.sh
+```
+
+It builds the website, pushes the `dist` folder to the `gh-pages` branch, and marks the commit with a
+`release-...` tag. The empty file `public/.nojekyll` has to stay: without it GitHub does not serve the files
+whose names start with an underscore, and the build makes one.
+
+# Support
+
+If you like this work please consider sponsoring the project:
+
+* [Via PayPal](http://paypal.me/anvakos/4)
+* [Via GitHub Sponsors](https://github.com/sponsors/anvaka)
+
+Your support will be used to pay for hosting and further development of this project ❤️.
 
 # License
 
