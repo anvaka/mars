@@ -1,5 +1,4 @@
-import { createColorReliefExpression } from "./lib/colorRamp.js";
-import themes from "./lib/themes.js";
+import { createColorReliefExpression, getTheme } from "./lib/colorRamp.js";
 import appState from "./appState.js";
 import { hasPreciseElevation } from "./tiles.js";
 import { NIGHT_SOURCE, SUN_SOURCE, getNightSource, getSunSource } from "./lib/dayNight.js";
@@ -194,9 +193,8 @@ const MIN_ZOOM_OF_MISSION_DETAILS = 3;
  * large it is. Those that have no known outline get a ring in the middle.
  */
 function getSelectionLayers() {
-  const visibility = getSelectionVisibility();
   const isLine = ["==", ["geometry-type"], "LineString"];
-  const round = { visibility, "line-cap": "round", "line-join": "round" };
+  const round = { "line-cap": "round", "line-join": "round" };
 
   return [
     {
@@ -221,7 +219,6 @@ function getSelectionLayers() {
       type: "circle",
       source: SELECTION_SOURCE,
       filter: ["==", ["geometry-type"], "Point"],
-      layout: { visibility },
       paint: {
         "circle-radius": 9,
         "circle-color": "rgba(255, 255, 255, 0.15)",
@@ -232,20 +229,14 @@ function getSelectionLayers() {
   ];
 }
 
-export function getSelectionVisibility() {
-  // The line would get into the print of the height map
-  return appState.shouldDraw ? "none" : "visible";
-}
-
 export function getDayNightVisibility() {
   return isSunVisible() ? "visible" : "none";
 }
 
 function isSunVisible() {
-  // The night and the light of this very minute should not get into the
-  // print. And the small map of the ground view is there to show the way:
-  // it would be of no use in the dark.
-  return !appState.shouldDraw && !appState.ground;
+  // The small map of the ground view is there to show the way: it would be
+  // of no use in the dark.
+  return !appState.ground;
 }
 
 /**
@@ -253,7 +244,7 @@ function isSunVisible() {
  * `[layerId, paintProperty, value]` to apply when the theme changes.
  */
 export function getLabelColors(themeName) {
-  const theme = themes[themeName];
+  const theme = getTheme(themeName);
   const colors = [];
   getLabelLayers().forEach(layer => {
     if (layer.type === "symbol") {
@@ -268,7 +259,7 @@ export function getLabelColors(themeName) {
 }
 
 function getLabelLayers() {
-  const theme = themes[appState.theme];
+  const theme = getTheme(appState.theme);
   const featureClass = ["get", "class"];
   // The rovers whose photos we can show, see tools/build_labels.py
   const hasPhotos = ["has", "rover"];
@@ -366,7 +357,7 @@ function getLabelLayers() {
 }
 
 function getTextPaint() {
-  const theme = themes[appState.theme];
+  const theme = getTheme(appState.theme);
   return {
     "text-color": theme.labelColor,
     "text-halo-color": theme.haloColor,

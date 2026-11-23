@@ -78,17 +78,69 @@ the gazetteer number of many features, and saves the answer to `tools/wikipedia_
 The slopes are shaded, so that craters and canyons look like land and not like a color chart. The globe shows where
 the Sun is over Mars right now, and the land is lit by that very Sun (`src/lib/sunRelief.js`): shadows are long near
 the edge of the night and almost gone where the Sun is overhead. The shade is drawn in the browser from the elevation
-tiles, and drawn again as the Sun moves. When the map is drawn as ridgelines, the light comes from the top left
-corner, the way it does on printed maps.
+tiles, and drawn again as the Sun moves. On the small map of the ground view and on the poster of a place the light
+comes from the top left corner, the way it does on printed maps.
 
-The `OCHRE` theme is made to go with the shading, and it is the one the map opens with.
+## Colors
 
-## Ridgelines
+A click on the elevation legend changes the colors of the map. There are four themes (`src/lib/themes.js`):
 
-The button with three ridges, under the zoom buttons, draws what is on the screen as lines of elevation, one behind
-the other. This is the picture that can be printed on a mug. Its options (how many lines, how tall, which colors)
-are shown only while the lines are drawn, so the map itself has no settings: the colors of the map change with a
-click on the elevation legend.
+- `OCHRE`, the one the map opens with: rust in the plains, sand on the mountains.
+- `OCEAN`: Mars with the ocean it may have had 3.5 billion years ago. The water stands at -2.54 kilometers, the
+  level that the ancient river deltas share ([Di Achille and Hynek, 2010](https://doi.org/10.1038/ngeo891)).
+  Gale and Jezero craters, where the rovers drive now, are lakes.
+- `DUSK`: the colors of the sky after the sunset.
+- `STONE`: warm gray, for those who want to see the shape of the land and nothing else.
+
+Mars is 30 kilometers tall, but almost all of its land lies between -5 and +4 kilometers. A palette that is spread
+evenly spends most of its colors on four volcanoes and paints the rest of the planet with a couple of dark ones, so
+every theme has most of its colors below 5 kilometers. No theme is as dark as a shadow or as bright as a sunlit
+slope: the shading has to be visible on every color.
+
+## Posters
+
+The button with a framed picture, under the zoom buttons, makes a poster (`src/components/PosterView.vue`).
+The poster can be downloaded as a picture (3071 by 4095 pixels), or ordered as a print. There are two kinds of
+them:
+
+* **A moment** is Mars the way it was seen from Earth at a date and time of the visitor: the side of the planet
+  that was turned to us, lit by the Sun of that moment, with the date of the Mars calendar and the distance.
+  `src/lib/marsFromEarth.js` finds which side it was. It places the two planets on their orbits with the
+  [approximate positions of JPL](https://ssd.jpl.nasa.gov/planets/approx_pos.html), which are good from 1800 to
+  2050. `node tools/check_mars_from_earth.mjs` compares the result with the ephemeris of JPL: they agree within
+  0.3 degrees.
+* **A place** is a framed map of a named feature, lit from the top left corner, with its name, size and height.
+  The link "Poster" on the card of a feature opens it. For those who came without a place in mind, the panel
+  offers six that make a good picture (`SUGGESTED_PLACES`).
+
+A poster is not limited to one picture. It is described by what it shows (`src/poster/posterDescription.js`):
+the kind of its pictures, and the moments or the places. Two moments make two globes side by side. A month of
+a moment makes a globe for every day of it, and a year makes one for every month. A day of Mars is 40 minutes
+longer than ours, so at the same hour of every night Mars shows a side that is 9 degrees away from the one of
+yesterday, and a month is three quarters of one slow turn of the planet.
+
+Nothing is designed for a particular number of pictures:
+
+* **The layout is counted** (`src/poster/posterLayout.js`). The pictures make a grid, and of all the grids we
+  take the one where they are the largest. Only the poster with one picture is laid out by hand.
+* **The words are derived.** What all the pictures share is said once, in the title ("February 2027"), and what
+  makes them different is said under each of them ("19"). See `describeMoments()`.
+* **The description is the link.** It is kept in the address bar
+  (`?poster=moment&date=2027-02-19T2100-0800&span=month`), so a poster can be sent to a friend, or changed by
+  hand: several dates or places are separated by `_`. A moment is written with the clock of its author, and is
+  the same moment for those who open the link on the other side of Earth. If the globe was turned or the place
+  was framed by hand, the link has it too (`camera`).
+
+The poster with one picture has its own map (`src/poster/posterMap.js`), so the globe can be turned and the
+place can be framed without moving the main map. A browser allows only a handful of maps on a page, so the
+pictures of a poster with many of them are drawn one after another by a single hidden map. The file for print
+is made the same way, with tiles that are four times as detailed. The words and the paper are drawn on a canvas
+by the same code for the screen and for the file (`src/poster/drawPoster.js`).
+
+The prints are made by Zazzle (`src/lib/printShop.js`). A product in the Zazzle store is a template: an 18 by 24
+inch poster whose image is replaced by the picture that a link to the product names. "Order a print" draws the
+picture, stores it as a JPEG of about one megabyte, and opens that link. The size, the paper and the frame are
+chosen on the page of Zazzle.
 
 ## Standing on Mars
 

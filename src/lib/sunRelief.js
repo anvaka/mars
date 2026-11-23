@@ -42,53 +42,67 @@ const LIGHT_COLOR = [255, 232, 196];
 const SHADOW_STRENGTH = 0.9;
 const LIGHT_STRENGTH = 0.55;
 
-let sun = getSun();
-let version = 0;
-
 addProtocol(PROTOCOL, request => {
-  // "sunrelief://version/zoom/x/y"
-  const [zoom, x, y] = request.url.split('/').slice(-3).map(Number);
-  return drawTile(zoom, x, y, sun).then(data => ({ data }));
+  // "sunrelief://time/zoom/x/y"
+  const [time, zoom, x, y] = request.url.slice(PROTOCOL.length + 3).split('/').map(Number);
+  return drawTile(zoom, x, y, getSun(new Date(time))).then(data => ({ data }));
 });
 
-export function getSunReliefSource() {
+/**
+ * The shade of the slopes at the given moment. Tiles are drawn `tileSize`
+ * pixels wide: a picture for print asks for a smaller one, and gets tiles
+ * that are more detailed.
+ */
+export function getSunReliefSource(date = new Date(), tileSize = ELEVATION_TILE_SIZE) {
   return {
     type: 'raster',
-    tiles: [getTiles()],
-    tileSize: ELEVATION_TILE_SIZE,
+    tiles: [getTiles(date)],
+    tileSize,
     minzoom: 0,
     maxzoom: getDemTileMaxZoom()
   };
 }
 
 /**
- * Draws the shade again if the Sun has moved since the last time.
+ * Draws the shade again if the Sun has moved since the last time. Pass
+ * `force` to draw it no matter what.
  */
-export function updateSunRelief(map) {
-  const now = getSun();
+export function updateSunRelief(map, date = new Date(), force = false) {
+  const source = map.getSource(SUN_RELIEF_SOURCE);
+  // The source learns its tiles when it is loaded
+  if (!source || !source.tiles) return;
+
+  // The address of the tiles tells where the Sun was when they were drawn
+  const drawnAt = Number(source.tiles[0].slice(PROTOCOL.length + 3).split('/')[0]);
+  const sun = getSun(new Date(drawnAt));
+  const now = getSun(date);
   const cosine = now.sinLat * sun.sinLat +
     now.cosLat * sun.cosLat * Math.cos(now.longitude - sun.longitude);
-  if (cosine > Math.cos(REDRAW_AFTER * DEGREES)) return;
+  if (!force && cosine > Math.cos(REDRAW_AFTER * DEGREES)) return;
 
-  sun = now;
-  version += 1;
-  const source = map.getSource(SUN_RELIEF_SOURCE);
-  if (source) source.setTiles([getTiles()]);
+  source.setTiles([getTiles(date)]);
 }
 
-function getTiles() {
+function getTiles(date) {
   // The pictures are new each time, so are their addresses:
-  return `${PROTOCOL}://${version}/{z}/{x}/{y}`;
+  return `${PROTOCOL}://${date.getTime()}/{z}/{x}/{y}`;
 }
 
-function getSun() {
-  const time = getMarsTime();
+// The same Sun shades hundreds of tiles
+let lastSun;
+
+function getSun(date) {
+  if (lastSun && lastSun.time === date.getTime()) return lastSun;
+
+  const time = getMarsTime(date);
   const latitude = time.subsolarLatitude * DEGREES;
-  return {
+  lastSun = {
+    time: date.getTime(),
     longitude: time.subsolarLongitude * DEGREES,
     sinLat: Math.sin(latitude),
     cosLat: Math.cos(latitude)
   };
+  return lastSun;
 }
 
 function drawTile(zoom, x, y, sun) {

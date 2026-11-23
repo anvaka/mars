@@ -37,6 +37,7 @@
         </a>
         <a href='#' :class='{ primary: !feature.rover }' v-if='canStandHere' @click.prevent='$emit("stand")'>Stand here</a>
         <a href='#' @click.prevent='$emit("show")'>Zoom to it</a>
+        <a href='#' @click.prevent='$emit("poster")'>Poster</a>
         <a v-if='gazetteerLink' class='source' :href='gazetteerLink' target='_blank' rel='noopener'
           title='Gazetteer of Planetary Nomenclature: the official record of this name'>Official record</a>
       </div>
@@ -62,7 +63,7 @@ export default {
   props: {
     feature: { type: Object, required: true }
   },
-  emits: ['close', 'show', 'stand', 'photos'],
+  emits: ['close', 'show', 'stand', 'photos', 'poster'],
   data() {
     return {
       // `{text, image, smallImage, link}` of the Wikipedia article, when it is loaded
@@ -301,9 +302,12 @@ h3 {
 .actions {
   display: flex;
   align-items: center;
+  // On a narrow screen the actions take two rows. Each stays in one piece.
+  flex-wrap: wrap;
+  gap: 10px 18px;
   margin-top: 16px;
   a {
-    margin-right: 18px;
+    white-space: nowrap;
     color: primary-action-color;
     text-decoration: none;
     &:hover {

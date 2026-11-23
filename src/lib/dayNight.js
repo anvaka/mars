@@ -19,44 +19,47 @@ const NIGHT_OPACITY = 0.5;
 const TWILIGHT_START = 0.05;
 const TWILIGHT_END = -0.25;
 
-let marsTime = getMarsTime();
-let version = 0;
+addProtocol(PROTOCOL, request => {
+  // "night://time/darkness/zoom/x/y", see `getNightTiles()`
+  const [time, darkness] = request.url.slice(PROTOCOL.length + 3).split('/').map(Number);
+  return drawNightShade(getMarsTime(new Date(time)), darkness / 100).then(data => ({ data }));
+});
 
-addProtocol(PROTOCOL, () => drawNightShade(marsTime).then(data => ({ data })));
-
-export function getNightSource() {
+/**
+ * The shade of the night at the given moment. The `darkness` tells how dark
+ * the middle of the night is, from 0 to 1: the map stays readable at night,
+ * and a picture of the planet seen from afar does not have to.
+ */
+export function getNightSource(date = new Date(), darkness = NIGHT_OPACITY) {
   return {
     type: 'raster',
-    tiles: [getNightTiles()],
+    tiles: [getNightTiles(date, darkness)],
     tileSize: 512,
     minzoom: 0,
     maxzoom: 0
   };
 }
 
-export function getSunSource() {
-  return { type: 'geojson', data: getSunPoint() };
+export function getSunSource(date = new Date()) {
+  return { type: 'geojson', data: getSunPoint(getMarsTime(date)) };
 }
 
 /**
- * Moves the shade and the Sun to where they are right now.
+ * Moves the shade and the Sun to where they are at the given moment.
  */
-export function updateDayNight(map) {
-  marsTime = getMarsTime();
-  version += 1;
-
+export function updateDayNight(map, date = new Date(), darkness = NIGHT_OPACITY) {
   const night = map.getSource(NIGHT_SOURCE);
-  if (night) night.setTiles([getNightTiles()]);
+  if (night) night.setTiles([getNightTiles(date, darkness)]);
   const sun = map.getSource(SUN_SOURCE);
-  if (sun) sun.setData(getSunPoint());
+  if (sun) sun.setData(getSunPoint(getMarsTime(date)));
 }
 
-function getNightTiles() {
+function getNightTiles(date, darkness) {
   // The picture is new each time, so is its address:
-  return `${PROTOCOL}://${version}/{z}/{x}/{y}`;
+  return `${PROTOCOL}://${date.getTime()}/${Math.round(darkness * 100)}/{z}/{x}/{y}`;
 }
 
-function getSunPoint() {
+function getSunPoint(marsTime) {
   return {
     type: 'Feature',
     geometry: {
@@ -71,7 +74,7 @@ function getSunPoint() {
  * Resolves with a PNG image of the web mercator map of the entire planet,
  * which is transparent where it is day and dark where it is night.
  */
-function drawNightShade(time) {
+function drawNightShade(time, darkness) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = SHADE_SIZE;
   const ctx = canvas.getContext('2d');
@@ -94,7 +97,7 @@ function drawNightShade(time) {
       let night = (TWILIGHT_START - sunHeight) / (TWILIGHT_START - TWILIGHT_END);
       night = Math.max(0, Math.min(1, night));
       night = night * night * (3 - 2 * night);
-      image.data[(y * SHADE_SIZE + x) * 4 + 3] = Math.round(255 * NIGHT_OPACITY * night);
+      image.data[(y * SHADE_SIZE + x) * 4 + 3] = Math.round(255 * darkness * night);
     }
   }
   ctx.putImageData(image, 0, 0);

@@ -1,23 +1,14 @@
 import themes from './themes.js';
-import { getElevationAt } from '../tiles.js';
 
 /**
  * Returns array of `{elevation, color}` stops for a theme. The stops are sorted
  * from the lowest to the highest elevation (in meters).
  */
 export function getColorStops(themeName) {
-  const steps = (themes[themeName] || themes.RED).colorRamp;
-  const total = steps.reduce((sum, step) => sum + (step.size || 0), 0);
-
-  let covered = 0;
-  return steps.map(step => {
-    const stop = {
-      elevation: getElevationAt(covered / total),
-      color: step.value
-    };
-    covered += step.size || 0;
-    return stop;
-  });
+  return getTheme(themeName).colors.map(([kilometers, color]) => ({
+    elevation: kilometers * 1000,
+    color
+  }));
 }
 
 /**
@@ -31,3 +22,13 @@ export function createColorReliefExpression(themeName) {
 
   return expression;
 }
+
+/**
+ * Gives the theme with the given name. A name we do not know (an old link
+ * may have one) gives the theme the map opens with.
+ */
+export function getTheme(themeName) {
+  return themes[themeName] || themes[DEFAULT_THEME];
+}
+
+export const DEFAULT_THEME = Object.keys(themes)[0];

@@ -28,7 +28,7 @@
       <template v-if='view'>
         <a href='#' class='place-row' :title='optionsAreOpen ? "Hide the options" : "Show the time of the day and other options"'
           :aria-expanded='optionsAreOpen' @click.prevent='optionsAreOpen = !optionsAreOpen'>
-          <span class='place'>{{place}} <span class='secondary'>· {{elevation}}</span></span>
+          <span class='place'>{{place}} <span class='secondary'>· <span class='word'>elevation </span>{{elevation}}</span></span>
           <svg class='fold' viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
             <path d='M6 9 L12 15 L18 9' />
           </svg>
@@ -265,7 +265,7 @@ export default {
     },
 
     elevation() {
-      return 'elevation ' + formatMeters(this.view.elevation);
+      return formatMeters(this.view.elevation);
     },
 
     localTime() {
@@ -797,6 +797,13 @@ secondary-color = #7a8794;
 @media (max-width: 700px) {
   .ground-panel .hint {
     display: none;
+  }
+  // The place and its height have one line: the number speaks for itself
+  .place-panel .place {
+    white-space: nowrap;
+    .word {
+      display: none;
+    }
   }
   .ground-panel.rover-panel {
     bottom: auto;

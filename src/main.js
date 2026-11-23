@@ -7,13 +7,13 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import createState from 'query-state';
 import appState from './appState.js';
 import themes from './lib/themes.js';
-import createHeightMapRenderer from './lib/createHeightMapRenderer.js';
-import { createColorReliefExpression } from './lib/colorRamp.js';
+import { parsePoster, ADDRESS_KEYS as POSTER_ADDRESS_KEYS } from './poster/posterDescription.js';
+import { createColorReliefExpression, DEFAULT_THEME } from './lib/colorRamp.js';
 import {
   getMarsStyle, getLabelColors,
   getDayNightVisibility, DAY_NIGHT_LAYERS, getShadingVisibility, SHADING_LAYER,
   getSunShadingVisibility, SUN_SHADING_LAYER,
-  SELECTION_SOURCE, SELECTION_LAYERS, CLICKABLE_LAYERS, getSelectionVisibility
+  SELECTION_SOURCE, CLICKABLE_LAYERS
 } from './getMarsStyle.js';
 import { updateDayNight } from './lib/dayNight.js';
 import { updateSunRelief } from './lib/sunRelief.js';
@@ -28,8 +28,6 @@ import { loadDemSource } from './tiles.js';
 // the code is bundled.
 setWorkerUrl(workerUrl);
 
-// The colors that go best with the light and shadow on the slopes
-const DEFAULT_THEME = 'OCHRE';
 let themeNames = Object.keys(themes);
 let themeIndex = 0;
 let queryState = createState({
@@ -47,7 +45,6 @@ import('./vueApp.js');
 // Hold a reference to maplibre instance.
 let map;
 
-let heightMapRenderer;
 // The map in the corner of the ground view, see ./lib/miniMap.js
 let miniMap;
 // Routes of the rovers on the map, see ./lib/roverLayers.js
@@ -58,7 +55,6 @@ let isStyleReady = false;
 // and they get more room.
 const STOP_REACH = 6;
 const STOP_REACH_ON_SMALL_MAP = 14;
-let currentProjection;
 let pendingGroundViewSave;
 // Ground view is kept in the address bar as "latitude_longitude_heading_pitch_height"
 const GROUND_VIEW_SEPARATOR = '_';
@@ -68,19 +64,22 @@ function mergeStateFromQueryState() {
   themeIndex = themeNames.findIndex(x => x === themeName);
   if (themeIndex < 0) themeIndex = themeNames.indexOf(DEFAULT_THEME);
   appState.theme = themeNames[themeIndex];
+  // A link may lead straight to a poster
+  appState.poster = parsePoster(queryState.get());
 }
 
 function augmentAppStateWithMethods() {
   // Let the vue know what to call to start the app.
   appState.init = init;
-  appState.redraw = updateHeights;
   appState.setNextTheme = setNextTheme;
-  appState.getMapCanvas = getMapCanvas;
   appState.setPickingGroundPlace = setPickingGroundPlace;
   appState.selectFeature = selectFeature;
   appState.showFeature = showFeature;
   appState.standAtFeature = standAtFeature;
   appState.showRoverPhotos = showRoverPhotos;
+  appState.openPoster = openPoster;
+  appState.savePoster = savePoster;
+  appState.closePoster = closePoster;
   appState.saveGroundView = saveGroundView;
   appState.closeGroundView = closeGroundView;
 }
@@ -93,7 +92,6 @@ function init() {
 }
 
 function createMap(demSource) {
-  currentProjection = getDesiredProjection();
   // A link may lead straight to a place on the surface. The style of the map
   // depends on it, so we have to know before the map is made.
   appState.ground = parseGroundView(queryState.get('ground'), queryState.get('rover'));
@@ -102,7 +100,8 @@ function createMap(demSource) {
     trackResize: true,
     container: "map",
     minZoom: 1,
-    style: getMarsStyle(demSource, currentProjection),
+    // Mars is a globe: a sphere when zoomed out, that flattens as we zoom in
+    style: getMarsStyle(demSource, 'globe'),
     center: [-92.880, 18.79],
     zoom: 2.64,
     hash: true,
@@ -115,13 +114,8 @@ function createMap(demSource) {
   map.addControl(createModesControl(), "top-right");
   map.addControl(new AttributionControl({ compact: true }), "bottom-left");
 
-  map.on("zoomstart", hideHeights);
-  map.on("zoomend", updateHeights);
-  map.on("dragstart", hideHeights);
-  map.on("dragend", updateHeights);
   map.on("load", function() {
     isStyleReady = true;
-    updateHeights();
     updateDayNightVisibility();
     rovers = showRoversOnMap(map);
     // A link may lead to a named place:
@@ -141,21 +135,19 @@ function createMap(demSource) {
     // The map in the corner of the ground view moves us where it is clicked
     else if (appState.ground) moveGroundView(e.lngLat.wrap());
     else if (appState.isPickingGroundPlace) openGroundView(e.lngLat.wrap());
-    // The ridgelines are for making a print, the cards are hidden there
-    else if (!appState.shouldDraw) selectFeatureAt(e.point);
+    else selectFeatureAt(e.point);
   });
   CLICKABLE_LAYERS.forEach(layer => {
     map.on("mouseenter", layer, () => setMapCursor("pointer"));
     map.on("mouseleave", layer, () => setMapCursor(""));
   });
 
-  // Lines of the height map are drawn for the flat map that looks north:
+  // North is always up: the names, the Sun and the small map of the ground
+  // view are all made for the map that is not turned.
   map.dragRotate.disable();
   map.touchZoomRotate.disableRotation();
   map.touchPitch.disable();
   map.keyboard.disableRotation();
-
-  updateGlobeBackground();
 
   miniMap = createMiniMap(map);
   if (appState.ground) miniMap.open(appState.ground);
@@ -165,17 +157,16 @@ const GROUND_VIEW_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="
   <circle cx="12" cy="5" r="3"/>
   <path d="M7.5 10.5 Q7.5 9 9 9 L15 9 Q16.5 9 16.5 10.5 L16.5 15 L14.6 15 L14.6 22 L9.4 22 L9.4 15 L7.5 15 Z"/>
 </svg>`;
-// Three ridges, one behind the other
-const RIDGELINES_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+const POSTER_ICON = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M3 9 L8 9 L10.5 4.5 L13 9 L21 9"/>
-  <path d="M3 14.5 L9 14.5 L12.5 8.5 L15.5 14.5 L21 14.5"/>
-  <path d="M3 20 L6 20 L9 15.5 L12 20 L21 20"/>
+  <rect x="5" y="3" width="14" height="18" rx="1"/>
+  <circle cx="12" cy="10" r="3.6"/>
+  <path d="M9 17 L15 17"/>
 </svg>`;
 
 /**
  * Buttons on the map that change what we look at: one lets the visitor
- * choose a place to stand at, the other draws the map as ridgelines.
+ * choose a place to stand at, another makes a poster.
  */
 function createModesControl() {
   let container;
@@ -187,8 +178,8 @@ function createModesControl() {
 
       container.appendChild(createModeButton('ground-view-button', 'Stand on the surface', GROUND_VIEW_ICON,
         () => setPickingGroundPlace(!appState.isPickingGroundPlace)));
-      container.appendChild(createModeButton('ridgelines-button', 'Draw this view as ridgelines, to print it',
-        RIDGELINES_ICON, () => setRidgelinesVisible(!appState.shouldDraw)));
+      container.appendChild(createModeButton('poster-button', 'Make a poster of Mars', POSTER_ICON,
+        () => openPoster('moment')));
       return container;
     },
 
@@ -209,16 +200,39 @@ function createModeButton(className, title, icon, onClick) {
   return button;
 }
 
-function setRidgelinesVisible(isVisible) {
-  // The print is made of what is on the screen, not of a place to stand at
-  if (isVisible) setPickingGroundPlace(false);
-  appState.shouldDraw = isVisible;
+/**
+ * Opens the place where posters are made. The `kind` is `moment` (Mars at a
+ * moment of the visitor) or `place` (a map of the given feature).
+ */
+function openPoster(kind, feature) {
+  setPickingGroundPlace(false);
+  // If the visitor looks at a place, this is the place they would print
+  appState.poster = { kind, feature: feature || appState.selectedFeature };
+}
+
+/**
+ * Keeps the poster in the address bar, so that a link to it can be shared.
+ * The `address` has a value for every key of the poster, see
+ * `writePoster()` in ./poster/posterDescription.js.
+ */
+function savePoster(address) {
+  const values = {};
+  POSTER_ADDRESS_KEYS.forEach(key => {
+    if (address[key] === undefined) queryState.unset(key);
+    else values[key] = address[key];
+  });
+  queryState.set(values);
+}
+
+function closePoster() {
+  appState.poster = null;
+  POSTER_ADDRESS_KEYS.forEach(key => queryState.unset(key));
 }
 
 function setMapCursor(cursor) {
   // While the visitor chooses where to stand, any place can be clicked. And
   // the names cannot be clicked on the small map of the ground view.
-  const canClick = !appState.isPickingGroundPlace && !appState.shouldDraw && !appState.ground;
+  const canClick = !appState.isPickingGroundPlace && !appState.ground;
   map.getCanvas().style.cursor = canClick ? cursor : "";
 }
 
@@ -339,8 +353,6 @@ function moveGroundView(lngLat) {
 function showGround(ground) {
   const wasOpen = !!appState.ground;
   setPickingGroundPlace(false);
-  // The ridgelines are made of what is on the screen, and it is not the map anymore
-  appState.shouldDraw = false;
   // The ground view watches this value, and moves when it is replaced
   appState.ground = ground;
   if (wasOpen) return;
@@ -455,70 +467,3 @@ function setDayNightLayersVisibility(visibility) {
   DAY_NIGHT_LAYERS.forEach(layerId => map.setLayoutProperty(layerId, 'visibility', visibility));
 }
 
-function getDesiredProjection() {
-  // Mars is a globe: a sphere when zoomed out, that flattens as we zoom in.
-  // The height map lines are computed for the flat map only, so they get one.
-  return appState.shouldDraw ? 'mercator' : 'globe';
-}
-
-/**
- * Makes sure the map uses projection that matches the app state. Returns true
- * if projection was changed.
- */
-function updateProjection() {
-  if (!map) return false;
-
-  const projection = getDesiredProjection();
-  if (projection === currentProjection) return false;
-
-  currentProjection = projection;
-  map.setProjection({ type: projection });
-  updateGlobeBackground();
-  updateDayNightVisibility();
-  SELECTION_LAYERS.forEach(layerId => map.setLayoutProperty(layerId, 'visibility', getSelectionVisibility()));
-  return true;
-}
-
-function updateGlobeBackground() {
-  map.getContainer().classList.toggle('globe', currentProjection === 'globe');
-}
-
-/**
- * Returns canvas with the current frame of the map, ready to be copied.
- */
-function getMapCanvas() {
-  // WebGL drops the frame once it is presented, so we have to draw a new one
-  // right before the canvas is read.
-  map.redraw();
-  return map.getCanvas();
-}
-
-function hideHeights() {
-  appState.zazzleLink = null;
-  let canvas = document.querySelector(".height-map");
-  if (canvas) canvas.style.opacity = 0.02;
-}
-
-function updateHeights() {
-  if (!map) return;
-
-  let heightMapCanvas = document.querySelector(".height-map");
-  if (!heightMapCanvas) return;
-
-  map.resize();
-  updateProjection();
-
-  if (!appState.shouldDraw) {
-    heightMapCanvas.style.display = "none";
-    return;
-  } else {
-    heightMapCanvas.style.display = "";
-  }
-
-  if (heightMapRenderer) {
-    heightMapRenderer.cancel();
-  }
-
-  heightMapRenderer = createHeightMapRenderer(appState, map, heightMapCanvas);
-  heightMapRenderer.render();
-}

@@ -23,10 +23,6 @@ export const ELEVATION_RANGE = MAX_ELEVATION - MIN_ELEVATION;
 const DEM_TILESET = 'anvaka.8ctdbgc9';
 const access = `access_token=${MAPBOX_TOKEN}`;
 
-// The deepest point of the 16 bit elevation model is a bit lower than the
-// commonly cited one:
-const LOWEST_POINT = -8528;
-
 /**
  * "Terrarium" is the way to store elevation with a precision of a meter in
  * the colors of a picture.
@@ -34,15 +30,6 @@ const LOWEST_POINT = -8528;
 const terrarium = {
   decodeElevation(r, g, b) {
     return r * 256 + g + b / 256 - 32768;
-  },
-
-  encodeElevation(elevation) {
-    const value = Math.round(elevation) + 32768;
-    return `rgb(${value >> 8}, ${value & 255}, 0)`;
-  },
-
-  getElevationAt(t) {
-    return LOWEST_POINT + (MAX_ELEVATION - LOWEST_POINT) * t;
   }
 };
 
@@ -83,17 +70,6 @@ export const getDemTileMaxZoom = dem.getTileMaxZoom;
  * Converts color of a tile pixel to elevation in meters.
  */
 export const decodeElevation = dem.decodeElevation;
-
-/**
- * Gives a color that has to be stored in a tile to represent the elevation.
- */
-export const encodeElevation = dem.encodeElevation;
-
-/**
- * Maps 0..1 to elevation between the lowest and the highest point that the
- * tiles are able to store.
- */
-export const getElevationAt = dem.getElevationAt;
 
 /**
  * @param {String} url - address of the tiles on the server, without ".json"
@@ -271,19 +247,7 @@ function createMapBoxDem() {
       return 22;
     },
 
-    decodeElevation: decode,
-
-    encodeElevation(elevation) {
-      let value = Math.round(256 * (elevation - MIN_ELEVATION) / ELEVATION_RANGE);
-      value = Math.max(0, Math.min(255, value));
-      return `rgb(${value}, ${value}, ${value})`;
-    },
-
-    getElevationAt(t) {
-      // 255 is the largest value a tile can have. Going even one step above
-      // makes the map render the entire planet with the last color of the ramp
-      return decode(255 * t);
-    }
+    decodeElevation: decode
   };
 
   function decode(r) {

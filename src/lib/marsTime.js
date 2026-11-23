@@ -17,6 +17,11 @@ const TT_MINUS_UTC = 69.184;
 // One day on Mars (sol) is this many days on Earth
 export const SOL_IN_EARTH_DAYS = 1.0274912517;
 
+// From one spring equinox of Mars to the next, in days of Earth
+const YEAR_IN_EARTH_DAYS = 686.9726;
+// Mars Year 1 began on April 11, 1955
+const START_OF_YEAR_1 = Date.UTC(1955, 3, 11);
+
 // Other planets pull Mars a little bit: [amplitude in degrees, period in
 // years, phase in degrees]
 const PERTURBERS = [
@@ -97,6 +102,28 @@ export function getMarsTime(date = new Date(), ttMinusUtc = TT_MINUS_UTC) {
     solDate,
     sunDistance,
   };
+}
+
+/**
+ * The calendar of Mars. Years are counted the way the scientists do: the
+ * year starts at the Northern spring equinox, and Mars Year 1 began on
+ * April 11, 1955 (Clancy et al., 2000). Returns `{year, sol}`, where `sol`
+ * is the day of that year, starting from 1. A year has 668 or 669 of them.
+ */
+export function getMarsYear(date = new Date()) {
+  // Find when the current year began: the moment when the season was 0.
+  // Mars moves faster when it is closer to the Sun, so we get there in a
+  // few steps.
+  const season = getMarsTime(date).solarLongitude;
+  let start = date.getTime() - season / 360 * YEAR_IN_EARTH_DAYS * MILLISECONDS_IN_DAY;
+  for (let i = 0; i < 8; ++i) {
+    const missed = normalizeLongitude(getMarsTime(new Date(start)).solarLongitude);
+    start -= missed / 360 * YEAR_IN_EARTH_DAYS * MILLISECONDS_IN_DAY;
+  }
+
+  const sol = Math.floor((date.getTime() - start) / (SOL_IN_EARTH_DAYS * MILLISECONDS_IN_DAY)) + 1;
+  const year = Math.round((start - START_OF_YEAR_1) / (YEAR_IN_EARTH_DAYS * MILLISECONDS_IN_DAY)) + 1;
+  return { year, sol: Math.max(1, sol) };
 }
 
 /**
