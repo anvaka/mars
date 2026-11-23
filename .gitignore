@@ -13,3 +13,9 @@ src/token.js
 *.ntvs*
 *.njsproj
 *.sln
+
+# Source elevation data and generated tiles
+/data/
+
+# Python caches of the tools
+__pycache__/

@@ -1,24 +1,9 @@
-import { MAPBOX_TOKEN } from "./token";
-
-export function loadImage(url) {
-  return new Promise((accept, error) => {
-    const img = new Image();
-    img.onload = () => {
-      accept(img);
-    };
-    img.onerror = error;
-    img.crossOrigin = "anonymous";
-    img.src = url;
-  });
-}
+import { loadDemTile, encodeElevation } from "./tiles.js";
 
 export function getRegionElevation(ne, sw, zoom, progress, heightScale = 0) {
   if (!progress) progress = {};
 
-  const renderHD = false;
-
-  const tileSize = renderHD ? 512 : 256;
-  const hdSuffix = renderHD ? '@2x' : '';
+  const tileSize = 256;
 
   // these are precise coordinates of the visible area (they are not integers):
   let startTileLat = lat2tile(ne.lat, zoom);
@@ -59,7 +44,6 @@ export function getRegionElevation(ne, sw, zoom, progress, heightScale = 0) {
   canvas.height = height * tileSize;
   let work = [];
 
-  const apiURL = `https://api.mapbox.com/v4/anvaka.8ctdbgc9/zoom/tLong/tLat${hdSuffix}.pngraw?access_token=${MAPBOX_TOKEN}`;
   for (let x = 0; x < width; x++) {
     let _tLong = startTileLng + x;
 
@@ -75,13 +59,9 @@ export function getRegionElevation(ne, sw, zoom, progress, heightScale = 0) {
     for (let y = 0; y < height; y++) {
       let _tLat = startTileLat + y;
 
-      const url = apiURL
-        .replace("zoom", zoom)
-        .replace("tLat", _tLat)
-        .replace("tLong", _tLong);
-
         work.push({
-          url: url,
+          tileX: _tLong,
+          tileY: _tLat,
           x: x * tileSize,
           y: y * tileSize
         })
@@ -91,16 +71,18 @@ export function getRegionElevation(ne, sw, zoom, progress, heightScale = 0) {
   progress.total = work.length;
 
   const ctx = canvas.getContext('2d');
+  // If a tile cannot be loaded, we pretend it is flat, with zero elevation
+  const zeroHeightColor = encodeElevation(0);
   advanceProgress();
 
   return Promise.all(work.map(request => {
-    return loadImage(request.url)
+    return loadDemTile(zoom, request.tileX, request.tileY)
       .then(image => {
         ctx.drawImage(image, request.x, request.y);
         advanceProgress();
       }).catch(e => {
         ctx.beginPath();
-        ctx.fillStyle = '#0186a0'; // zero height
+        ctx.fillStyle = zeroHeightColor;
         ctx.fillRect(request.x, request.y, tileSize, tileSize);
         advanceProgress();
       });

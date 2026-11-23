@@ -1,72 +1,39 @@
-// Based on https://github.com/ElemeFE/element/blob/dev/src/utils/clickoutside.js
-// The MIT License (MIT), Copyright (c) 2016 ElemeFE
-const nodeList = [];
-const ctx = '@@clickoutsideContext';
+/**
+ * Directive that calls bound function when user clicks outside of the element:
+ *
+ *   <div v-click-outside='hide'></div>
+ */
+const nodeList = new Map();
 
 let startClick;
-let seed = 0;
 
 document.addEventListener('mousedown', e => (startClick = e));
-document.addEventListener('mouseup', e => {
-  nodeList.forEach(node => node[ctx].documentHandler(e, startClick));
-});
+document.addEventListener('mouseup', notifyNodes);
 
 // Also hide when tapped outside.
-document.addEventListener('touchstart', e => {
-  startClick = e;
-});
-document.addEventListener('touchend', e => {
-  nodeList.forEach(node => node[ctx].documentHandler(e, startClick));
-});
+document.addEventListener('touchstart', e => (startClick = e));
+document.addEventListener('touchend', notifyNodes);
 
-function createDocumentHandler(el, binding, vnode) {
+function notifyNodes(endClick) {
+  nodeList.forEach((callback, el) => {
+    // Click is "outside" only when it both started and ended outside:
+    if (!startClick || !endClick.target || !startClick.target) return;
+    if (el.contains(endClick.target) || el.contains(startClick.target)) return;
 
-  return function(mouseup = {}, mousedown = {}) {
-    if (!vnode || !vnode.context ||
-      !mouseup.target || !mousedown.target ||
-      el.contains(mouseup.target) ||
-      el.contains(mousedown.target) ||
-      el === mouseup.target ||
-      (vnode.context.popperElm &&
-      (vnode.context.popperElm.contains(mouseup.target) ||
-      vnode.context.popperElm.contains(mousedown.target)))) return;
-
-    const methodName = el[ctx].methodName;
-    if (binding.expression && methodName && vnode.context[methodName]) {
-      vnode.context[methodName]();
-    } else {
-      el[ctx].bindingFn && el[ctx].bindingFn();
-    }
-  };
+    if (typeof callback === 'function') callback();
+  });
 }
 
 export default {
-  bind(el, binding, vnode) {
-    nodeList.push(el);
-    const id = seed++;
-    el[ctx] = {
-      id,
-      documentHandler: createDocumentHandler(el, binding, vnode),
-      methodName: binding.expression,
-      bindingFn: binding.value
-    };
+  mounted(el, binding) {
+    nodeList.set(el, binding.value);
   },
 
-  update(el, binding, vnode) {
-    el[ctx].documentHandler = createDocumentHandler(el, binding, vnode);
-    el[ctx].methodName = binding.expression;
-    el[ctx].bindingFn = binding.value;
+  updated(el, binding) {
+    nodeList.set(el, binding.value);
   },
 
-  unbind(el) {
-    let len = nodeList.length;
-
-    for (let i = 0; i < len; i++) {
-      if (nodeList[i][ctx].id === el[ctx].id) {
-        nodeList.splice(i, 1);
-        break;
-      }
-    }
-    delete el[ctx];
+  unmounted(el) {
+    nodeList.delete(el);
   }
 };

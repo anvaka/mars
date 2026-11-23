@@ -1,128 +1,101 @@
 <template>
-  <div class='app-container'>
+  <div class='app-container' :class='{ ridgelines: shouldDraw }'>
     <div id='map' ref='map'></div>
     <canvas class='absolute height-map' ref='heightMap'></canvas>
-    <div id='progress' :style="{opacity: !settingsOpen && renderProgress ? 1 : 0}">
-      {{renderProgress && renderProgress.message}}
-    </div>
-    <div id="app" class='absolute'> 
-      <div class='row control-panel'>
-        <a href="#" class='settings' @click.prevent='settingsOpen = !settingsOpen' title='Toggle settings'>
-          <svg  xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="24" height="24" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-              <path d="M13 2 L13 6 11 7 8 4 4 8 7 11 6 13 2 13 2 19 6 19 7 21 4 24 8 28 11 25 13 26 13 30 19 30 19 26 21 25 24 28 28 24 25 21 26 19 30 19 30 13 26 13 25 11 28 8 24 4 21 7 19 6 19 2 Z" />
-              <circle cx="16" cy="16" r="4" />
-          </svg>
-        </a>
-        <a href="#" class='draw' title='Draw the heightmap chart' @click.prevent='onMainActionClick'>{{mainActionText}}</a>
-      </div>
-      <div class='settings-form' v-if='settingsOpen'>
-        <h3>Map settings</h3>
-        <div class='row'>
-          <div class='col label'>
-            Theme
-          </div>
-          <div class='col value' >
-            <select v-model="theme" @change="setThemeName(theme)">
-              <option v-for="(themeName, index) in computedThemes" :key="index" :value="themeName"
-              >{{themeName}}</option>
-            </select>
-          </div>
-        </div>
-        <div class='row'>
-          <div class='col label'>
-            <label for="labels">Show labels</label>
-          </div>
-          <div class='col value'>
-            <input type="checkbox" id="labels" name="scales" v-model='showLabels'>
-          </div>
-        </div>
-        <div v-if='shouldDraw'>
-          <h3>Height map settings</h3>
-          <div class='row'>
-            <div class='col label'>Line density</div>
-            <div class='col value'>
-              <input type='range' min='1' max='100' step='1' v-model="lineDensity"> 
-              <input type='number' :step='1' v-model='lineDensity'  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" min='1' max='100'>
-            </div>
-          </div>
-          <div class='row'>
-            <div class='col label'>Height scale</div>
-            <div class='col value'>
-              <input type='range' min='10' max='128' step='1' v-model='heightScale'> 
-              <input type='number' :step='1' v-model='heightScale'  autocomplete='off' autocorrect='off' autocapitalize="off" spellcheck="false" min='10' max='128'>
-            </div>
-          </div>
-          <div class='row'>
-            <div class='col label'>Ocean level</div>
-            <div class='col value'>
-              <input type='range' min='-8300' max='22000' step='1' v-model='oceanLevel'> 
-              <input type='number' :step='1' v-model='oceanLevel' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false' max='22000' min='-8300'>
-            </div>
-          </div>
-          <div class='row'>
-            <div class='col'>Smooth steps</div>
-            <div class='col value'>
-              <input type='range' min='1' max='12' step='1' v-model='smoothSteps'> 
-              <input type='number' :step='1' v-model='smoothSteps'  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" min='1' max='12'>
-            </div>
-          </div>
-          <div class='row'>
-            <div class='col label'>Overlay opacity</div>
-            <div class='col value'>
-              <input type="range" min="1" max="100" step="1" v-model="mapOpacity"> 
-              <input type='number' :step='1' v-model='mapOpacity'  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" min='1' max='100'>
-            </div>
-          </div>
-          <div class='row'>
-            <div class='col label'>Line width</div>
-            <div class='col'>
-              <input type="range" min="1" max="10" step="1" v-model="lineWidth"> 
-              <input type='number' :step='1' v-model='lineWidth' style='width: 100%'  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" min='1' max='100'>
-            </div>
-          </div>
-          <div class='row'>
-            <div class='col label'>Line stroke</div>
-            <div class='col'>
-              <color-picker v-model='lineColor' @change='updateLinesColor'></color-picker>
-            </div>
-          </div>
-          <div class='row'>
-            <div class='col label'>Line fill</div>
-            <div class='col'>
-              <color-picker v-model='lineBackground' @change='updateLinesColor'></color-picker>
-            </div>
-          </div>
+    <div id='app' class='absolute'>
+      <search-box v-if='!shouldDraw' @select='onFeatureFound'></search-box>
+      <feature-card v-if='selectedFeature && !shouldDraw' :feature='selectedFeature'
+        @close='selectFeature(null)' @show='showFeature(selectedFeature)' @stand='standAtFeature(selectedFeature)'
+        @photos='showPhotosOfSelected'></feature-card>
 
-          <div class='row'>
-            <div class='col label'>Background color</div>
-            <div class='col'>
-              <color-picker v-model='backgroundColor' @change='updateBackground'></color-picker>
+      <div class='ridgelines-panel' v-if='shouldDraw' :class='{ open: optionsOpen }'>
+        <div class='header'>
+          <h3>Ridgelines</h3>
+          <span class='progress'>{{renderProgress && renderProgress.message}}</span>
+          <a href='#' class='close' title='Back to the map' aria-label='Back to the map' @click.prevent='shouldDraw = false'>&times;</a>
+        </div>
+        <div class='options'>
+          <div class='basic'>
+            <div class='row'>
+              <div class='col label'>Line density</div>
+              <div class='col value'>
+                <input type='range' min='1' max='100' step='1' v-model='lineDensity' aria-label='Line density'>
+                <input type='number' :step='1' v-model='lineDensity' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false' min='1' max='100'>
+              </div>
+            </div>
+            <div class='row'>
+              <div class='col label'>Height scale</div>
+              <div class='col value'>
+                <input type='range' min='10' max='128' step='1' v-model='heightScale' aria-label='Height scale'>
+                <input type='number' :step='1' v-model='heightScale' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false' min='10' max='128'>
+              </div>
             </div>
           </div>
+          <div class='advanced' v-if='optionsOpen'>
+            <div class='row'>
+              <div class='col label'>Ocean level</div>
+              <div class='col value'>
+                <input type='range' min='-8600' max='22000' step='1' v-model='oceanLevel' aria-label='Ocean level'>
+                <input type='number' :step='1' v-model='oceanLevel' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false' max='22000' min='-8600'>
+              </div>
+            </div>
+            <div class='row'>
+              <div class='col label'>Smooth steps</div>
+              <div class='col value'>
+                <input type='range' min='1' max='12' step='1' v-model='smoothSteps' aria-label='Smooth steps'>
+                <input type='number' :step='1' v-model='smoothSteps' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false' min='1' max='12'>
+              </div>
+            </div>
+            <div class='row'>
+              <div class='col label' title='Make the lines see-through, to print them over the map'>Lines over the map</div>
+              <div class='col value'>
+                <input type='range' min='1' max='100' step='1' v-model='mapOpacity' aria-label='Opacity of the lines'>
+                <input type='number' :step='1' v-model='mapOpacity' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false' min='1' max='100'>
+              </div>
+            </div>
+            <div class='row'>
+              <div class='col label'>Line width</div>
+              <div class='col value'>
+                <input type='range' min='1' max='10' step='1' v-model='lineWidth' aria-label='Line width'>
+                <input type='number' :step='1' v-model='lineWidth' autocomplete='off' autocorrect='off' autocapitalize='off' spellcheck='false' min='1' max='100'>
+              </div>
+            </div>
+            <div class='row'>
+              <div class='col label'>Line stroke</div>
+              <div class='col'>
+                <color-picker v-model='lineColor' @change='redraw'></color-picker>
+              </div>
+            </div>
+            <div class='row'>
+              <div class='col label'>Line fill</div>
+              <div class='col'>
+                <color-picker v-model='lineBackground' @change='redraw'></color-picker>
+              </div>
+            </div>
+            <div class='row'>
+              <div class='col label'>Background color</div>
+              <div class='col'>
+                <color-picker v-model='backgroundColor' @change='redraw'></color-picker>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class='actions'>
+          <a href='#' class='primary' :class='{ busy: generatingPreview }' @click.prevent='previewOrOpen'>
+            {{generatingPreview ? 'Making the preview...' : 'Print it on a mug'}}
+          </a>
+          <a href='#' class='more' @click.prevent='optionsOpen = !optionsOpen'>{{optionsOpen ? 'Fewer options' : 'More options'}}</a>
+        </div>
+        <div v-if='zazzleLink' class='popup-help'>
+          If your browser has blocked the new window, please <a :href='zazzleLink' target='_blank'>click here</a>
+          to open it.
         </div>
       </div>
 
-      <div class='preview-actions' v-if='!settingsOpen && showPrintMessage && !hidePrintMessageForSession'>
-          <div v-if='!zazzleLink'>
-            <span>Like what you see?</span>
-            <a href='#' @click.prevent='previewOrOpen' class='action' :class='{"has-link": zazzleLink}'>
-              Print it on a mug!
-            </a>
-          </div>
-          <div v-if='zazzleLink' class='padded popup-help'>
-            If your browser has blocked the new window, please <a :href='zazzleLink' target='_blank'>click here</a>
-            to open it.
-          </div>
-          <div v-if='generatingPreview' class='loading-container'>
-            <loading></loading> Generating preview url...
-          </div>
-          <a href="#" @click.prevent='handleHideClick' class='hide-print-message'>x</a>
-      </div>
       <div class='error padded' v-if='error'>
         <h5>Error occurred:</h5>
         <pre>{{error}}</pre>
       </div>
-
     </div>
 
     <elevation></elevation>
@@ -132,17 +105,27 @@
 
     <about v-if='aboutVisible' @close='aboutVisible = false'></about>
 
+    <div class='pick-hint' v-if='isPickingGroundPlace && !ground'>
+      Click a place on the map to stand there.
+      <a href='#' @click.prevent='setPickingGroundPlace(false)'>cancel</a>
+    </div>
+    <ground-view v-if='ground' :start='ground' :theme='theme' @close='closeGroundView' @change='saveGroundView'></ground-view>
+
   </div>
 </template>
 
 <script>
-import appState from './appState';
-import ColorPicker from './components/ColorPicker';
-import Loading from './components/Loading';
-import About from './components/About';
-import Elevation from './components/Elevation';
-import generateZazzleLink from './lib/getZazzleLink';
-import themes from './lib/themes';
+import { defineAsyncComponent } from 'vue';
+import appState from './appState.js';
+import ColorPicker from './components/ColorPicker.vue';
+import About from './components/About.vue';
+import Elevation from './components/Elevation.vue';
+import SearchBox from './components/SearchBox.vue';
+import FeatureCard from './components/FeatureCard.vue';
+import generateZazzleLink from './lib/getZazzleLink.js';
+
+// Most visitors come for the map, so the ground view is loaded when asked for
+const GroundView = defineAsyncComponent(() => import('./components/GroundView.vue'));
 
 export default {
   name: 'App',
@@ -150,10 +133,12 @@ export default {
     return appState;
   },
   components: {
-    Loading,
     About,
     ColorPicker,
-    Elevation
+    Elevation,
+    SearchBox,
+    FeatureCard,
+    GroundView
   },
   mounted() {
     updateSizes(this.$refs);
@@ -162,24 +147,22 @@ export default {
       updateSizes(this.$refs);
       this.redraw();
     }
+    this.onKeyDown = e => {
+      if (e.key !== 'Escape') return;
+      if (this.isPickingGroundPlace) this.setPickingGroundPlace(false);
+      else if (this.ground || this.aboutVisible) return;
+      // The card is hidden while the ridgelines are drawn
+      else if (this.shouldDraw) this.shouldDraw = false;
+      else if (this.selectedFeature) this.selectFeature(null);
+    }
 
     window.addEventListener('resize', this.onResize, true);
+    window.addEventListener('keydown', this.onKeyDown);
   },
 
-  beforeDestroy() {
+  beforeUnmount() {
     window.removeEventListener('resize', this.onResize, true);
-  },
-
-  computed: {
-    computedThemes() {
-      return Object.keys(themes);
-    },
-    mainActionText() {
-      if (!this.shouldDraw) {
-        return 'Draw the height map'
-      }
-      return 'Show the original map';
-    }
+    window.removeEventListener('keydown', this.onKeyDown);
   },
 
   watch: {
@@ -211,37 +194,20 @@ export default {
       }
       this.redraw();
     },
-    settingsOpen(newValue) {
-      if (newValue) {
-        this.redraw();
-      }
-    }, 
-    showLabels(newValue) {
-      this.setLabelsVisible(newValue);
-    }
   },
   methods: {
-    handleHideClick() {
-      if (this.zazzleLink) {
-        this.showPrintMessage = false;
-        this.zazzleLink = null;
-      } else {
-        this.hidePrintMessageForSession = true
-      }
-    },
-    onMainActionClick() {
-      this.shouldDraw = !this.shouldDraw;
+    showPhotosOfSelected(done) {
+      // If the route of the rover cannot be loaded, the card stays as it was
+      this.showRoverPhotos(this.selectedFeature).catch(e => console.error(e)).then(done);
     },
 
-    updateBackground(x) {
-      this.redraw();
-    },
-
-    updateLinesColor(x) {
-      this.redraw();
+    onFeatureFound(feature) {
+      this.selectFeature(feature);
+      this.showFeature(feature);
     },
 
     previewOrOpen() {
+      if (this.generatingPreview) return;
       if (this.zazzleLink) {
         window.open(this.zazzleLink, '_blank');
         recordOpenClick(this.zazzleLink);
@@ -251,9 +217,9 @@ export default {
       let heightMapCanvas = this.$refs.heightMap;
       appState.generatingPreview = true;
 
-      let context = map.painter.context;
-      let width = map.painter.width;
-      let height = map.painter.height;
+      let mapCanvas = appState.getMapCanvas();
+      let width = mapCanvas.width;
+      let height = mapCanvas.height;
 
       let blended = document.createElement('canvas');
       let blendedCtx = blended.getContext('2d');
@@ -261,14 +227,12 @@ export default {
       blended.height = height;
       const globalAlpha = Number.parseFloat(appState.mapOpacity)/100;
 
-      if (globalAlpha < 1 || !this.shouldDraw) {
-        map._render();
-        blendedCtx.drawImage(map.getCanvas(), 0, 0)
+      // The map shows through the lines when they are not solid
+      if (globalAlpha < 1) {
+        blendedCtx.drawImage(mapCanvas, 0, 0)
       }
-      if (globalAlpha > 0 && this.shouldDraw) {
-        blendedCtx.globalAlpha = globalAlpha;
-        blendedCtx.drawImage(heightMapCanvas, 0, 0, heightMapCanvas.width, heightMapCanvas.height, 0, 0, width, height);
-      }
+      blendedCtx.globalAlpha = globalAlpha;
+      blendedCtx.drawImage(heightMapCanvas, 0, 0, heightMapCanvas.width, heightMapCanvas.height, 0, 0, width, height);
 
       generateZazzleLink(blended).then(link => {
         appState.zazzleLink = link;
@@ -285,12 +249,8 @@ export default {
 
 function updateSizes(refs) {
   let dimensions = getCanvasDimensions();
-  if (refs.map) {
-    refs.map.style.left = px(dimensions.left);
-    refs.map.style.top = px(dimensions.top);
-    refs.map.style.width = px(dimensions.width);
-    refs.map.style.height = px(dimensions.height);
-  }
+  // The size of the map itself is set by the styles: it takes the entire
+  // screen, or a corner of the ground view.
   setGuideLineSize(refs.heightMap, dimensions);
   appState.redraw();
 }
@@ -322,20 +282,23 @@ function getCanvasDimensions() {
 }
 
 function recordOpenClick(link) {
-  if (typeof ga === 'undefined') return;
+  if (typeof gtag === 'undefined') return;
 
-  ga('send', 'event', {
-      eventCategory: 'Outbound Link',
-      eventAction: 'click',
-      eventLabel: link
-    });
+  gtag('event', 'click', {
+    event_category: 'Outbound Link',
+    event_label: link
+  });
 }
 </script>
 
 <style lang='stylus'>
 border-color = #d8d8d8;
 primary-action-color = #ff4081;
+quiet-color = #6b7882;
 small-screen = 700px;
+// Room between the panel and the edges of the screen
+panel-margin = 10px;
+panel-row-height = 42px;
 
 .app-container {
   font-family: 'Avenir', Helvetica, Arial, sans-serif;
@@ -344,20 +307,146 @@ small-screen = 700px;
   color: #2c3e50;
 }
 
+// The panel floats over the corner of the map. It holds the search and the
+// card of the chosen place, or the options of the ridgelines.
 #app {
-  width: 400px;
+  left: panel-margin;
+  top: panel-margin;
+  width: 380px;
   background: white;
   z-index: 4;
-  box-shadow: 0 0 20px rgba(0,0,0,.3);
-  max-height: 100vh;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, .35);
+  max-height: 'calc(100vh - %s)' % (panel-margin * 2);
   overflow: hidden;
+
+  .search-box + * {
+    border-top: 1px solid border-color;
+  }
 }
 h3 {
   margin: 12px 0;
 }
-.hide-print-message {
+
+#map {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+#map.globe {
+  background: #08080c;
+}
+
+// While we stand on the surface, the map is a small window in the corner of
+// the ground view, see ./lib/miniMap.js
+mini-map-margin = 10px;
+#map.mini {
+  position: fixed;
+  left: mini-map-margin;
+  top: auto;
+  bottom: mini-map-margin;
+  width: 240px;
+  height: 180px;
+  // above the ground view
+  z-index: 11;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, .5), 0 0 0 2px rgba(255, 255, 255, .85);
+
+  .maplibregl-ctrl-top-right, .maplibregl-ctrl-bottom-left {
+    display: none;
+  }
+  .maplibregl-canvas-container {
+    cursor: pointer;
+  }
+}
+#map.mini.expanded {
+  // The panels of the ground view keep their places: the options above the
+  // map, and the stop of the rover to the right of it.
+  width: 'min(620px, max(240px, calc(100vw - %s)))' % (mini-map-margin * 2 + 320px);
+  height: 'min(460px, max(180px, calc(100vh - %s)))' % (mini-map-margin * 2 + 350px);
+
+  // The zoom buttons come back, below the button that makes the map small
+  .maplibregl-ctrl-top-right {
+    display: block;
+    top: 36px;
+    .maplibregl-ctrl {
+      margin: 8px 8px 0 0;
+    }
+    .modes-control {
+      display: none;
+    }
+  }
+}
+.mini-map-expand {
+  display: none;
   position: absolute;
   right: 8px;
+  top: 8px;
+  z-index: 5;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .1);
+  color: #333;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  &:hover {
+    color: primary-action-color;
+  }
+}
+#map.mini .mini-map-expand {
+  display: flex;
+}
+.mini-map-marker {
+  // Clicks go to the map under the marker
+  pointer-events: none;
+  svg {
+    display: block;
+  }
+}
+
+#map.picking-ground-place {
+  .maplibregl-canvas-container {
+    cursor: crosshair;
+  }
+  .ground-view-button {
+    color: primary-action-color;
+  }
+}
+
+// The ridgelines are drawn over the map, the buttons have to stay above them
+.maplibregl-ctrl-top-right {
+  z-index: 4;
+}
+
+.mode-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+}
+.ridgelines .ridgelines-button {
+  color: primary-action-color;
+}
+
+.pick-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, .3);
+  font-size: 14px;
+  z-index: 4;
+  white-space: nowrap;
 }
 
 .height-map {
@@ -371,10 +460,6 @@ h3 {
   align-items: center;
   display: flex;
   flex: 1;
-
-  select {
-    width: 100%;
-  }
 }
 
 .row {
@@ -384,119 +469,99 @@ h3 {
   height: 32px;
 }
 
-.control-panel {
-  height: 42px;
-  margin: 0;
-  justify-items: stretch;
-  border-bottom: 1px solid border-color;
-  a {
+.ridgelines-panel {
+  font-size: 14px;
+
+  .header {
     display: flex;
     align-items: center;
-  }
-  a.settings {
-    border-right: 1px solid border-color;
-    color: border-color;
-    padding: 0 16px;
-    &:hover {
-      color: primary-action-color;
+    height: panel-row-height;
+    padding: 0 8px 0 16px;
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .progress {
+      flex: 1;
+      margin: 0 12px;
+      font-size: 12px;
+      color: quiet-color;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .close {
+      width: 28px;
+      height: 28px;
+      line-height: 26px;
+      text-align: center;
+      font-size: 22px;
+      color: quiet-color;
+      &:hover {
+        color: primary-action-color;
+      }
     }
   }
-  .draw {
-    margin: 0 16px;
-    flex: 1;
-  }
-}
-.settings-form {
-  padding: 0 16px;
-  overflow-y: auto;
-  max-height: calc(100vh - 52px);
-  h3 {
-    margin: 8px 0 0 0;
-  }
-}
 
-.preview-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  font-size: 14px;
-  align-items: center;
-  display: flex;
-  margin: 4px 16px;
+  .options {
+    padding: 0 16px;
+    overflow-y: auto;
+    // The header and the actions are always on the screen
+    max-height: 'calc(100vh - %s)' % (panel-margin * 2 + panel-row-height + 100px);
+    .label {
+      flex: 0.7;
+    }
+  }
+
+  .value {
+    input[type='range'] {
+      flex: 1;
+      min-width: 0;
+      accent-color: primary-action-color;
+    }
+    input[type='number'] {
+      width: 58px;
+      margin-left: 8px;
+    }
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 14px;
+    .primary {
+      padding: 6px 14px;
+      border-radius: 3px;
+      background: primary-action-color;
+      color: white;
+      &:hover {
+        background: darken(primary-action-color, 8%);
+      }
+      &.busy {
+        background: #b9c0c6;
+        cursor: default;
+      }
+    }
+  }
 
   .popup-help {
-    text-align: center;
+    padding: 0 16px 14px;
+    color: quiet-color;
   }
-}
-
-.align-center {
-  text-align: center;
-}
-
-.left-right-padded {
-  padding-left: 12px;
-  padding-right: 12px;
 }
 
 .padded {
   padding: 12px;
 }
 
-.block {
-  margin-top: 12px;
-  padding-top: 10px;
-  display: flex;
-  flex-direction: column;
-}
 a {
   color: primary-action-color;
   text-decoration: none;
 }
-.canvas-settings {
-  padding-bottom: 12px;
-}
 .error pre {
   overflow-x: auto;
-}
-
-.col.value {
-  display: flex;
-  flex-direction: row;
-  
-  input[type='range'] {
-    flex: 1;
-  }
-  input[type='number'] {
-    width: 50px;
-  }
-  input[type='checkbox'] {
-    width: 100%;
-    cursor: pointer;
-  }
-
-}
-
-.loading-container {
-  display: flex;
-  align-items: center;
-  justify-content: left;
-  font-size: 14px;
-  margin: 4px 0;
-  svg {
-    margin-right: 12px;
-    margin-left: 12px;
-  }
-}
-.script-presets {
-  display: inline-block;
-}
-.nodisplay {
-  display: none;
-}
-
-.browse-btn {
-  color: primary-action-color;
-  cursor: pointer;
 }
 
 .elevation {
@@ -523,53 +588,32 @@ a {
 .map-text {
   text-shadow: -1px 0 #333, 0 1px #333, 1px 0 #333, 0 -1px #333;
 }
-.title {
-  font-size: 18px;
-}
-.row {
-  display: flex;
-  flex-direction: row;
-}
-.center {
-  justify-content: center;
-}
-.col {
-  flex: 1;
-}
-
-#progress {
-  transition: opacity .2s ease-in-out;
-  animation: blink 1.5s ease-in-out infinite alternate;
-  position: absolute;
-  top: 43px;
-  left: 0;
-  width: 400px;
-  font-size: 12px;
-  color: #333;
-  opacity: 0;
-  text-align: center;
-  background: rgba(255, 255, 255,.22);
-  box-shadow: -1px 1px 4px rgba(134, 132, 132, 0.8)
-  user-select: none;
-}
 
 @media (max-width: small-screen) {
   #app {
-    width: 100%;
+    width: auto;
+    right: panel-margin;
   }
-  #progress {
-    width: 100%;
-  }
-  .mapboxgl-ctrl-top-right {
-    top: 52px;
+  .maplibregl-ctrl-top-right {
+    // below the panel with the search
+    top: panel-margin + panel-row-height;
   }
 
-  .mapboxgl-ctrl-geocoder {
+  #map.mini {
+    width: 130px;
+    height: 110px;
+  }
+  #map.mini.expanded {
+    width: 'calc(100vw - %s)' % (mini-map-margin * 2);
+    height: 45vh;
+  }
+
+  // A phone has little room, so all the options wait until asked for
+  .ridgelines-panel:not(.open) .basic {
     display: none;
   }
-
-  .title {
-    font-size: 16px;
+  .ridgelines .maplibregl-ctrl-top-right {
+    top: panel-margin + panel-row-height + 58px;
   }
 }
 

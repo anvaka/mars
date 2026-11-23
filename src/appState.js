@@ -1,6 +1,8 @@
 
-const appState = {
-  showLabels: true,
+import { reactive } from 'vue';
+
+// The state is shared between vue components and the map code in main.js
+const appState = reactive({
   autoHeightMap: true,
   currentState: 'intro',
   lineDensity: 28,
@@ -15,11 +17,18 @@ const appState = {
   zazzleLink: null,
   startOver,
   generatingPreview: false,
-  settingsOpen: false,
+  // True while the map is drawn as ridgelines, to be printed
   shouldDraw: false,
-  showPrintMessage: false,
+  // The ridgelines have many options, most of them wait until asked for
+  optionsOpen: false,
+  // When set, we stand on the surface: {longitude, latitude, heading, pitch, eyeHeight, rover}.
+  // The `rover` is optional: {id, site, drive} of the stop of a rover where we stand.
+  ground: null,
+  // True while the visitor chooses a place on the map to stand at
+  isPickingGroundPlace: false,
+  // The named place whose card is shown, see ./lib/features.js
+  selectedFeature: null,
   renderProgress: null,
-  hidePrintMessageForSession: false,
   width: window.innerWidth,
   height: window.innerHeight,
 
@@ -32,7 +41,7 @@ const appState = {
   lineColor: {
     r: 22, g: 22, b: 22, a: 0.85
   },
-};
+});
 
 function startOver() {
   appState.zazzleLink = null;

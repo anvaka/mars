@@ -2,45 +2,36 @@
 <div class='vue-colorpicker' @click='showPicker = true' v-click-outside='hide' >
   <span class='vue-colorpicker-btn' :style='btnStyle' ref='triggerButton'></span>
   <div class='vue-colorpicker-panel' v-show='showPicker' :style="{left: panelLeft, top: panelTop}">
-    <component :is='pickerType' v-model='colors' @input='changeColor'></component>
+    <sketch-picker :model-value='modelValue' @update:model-value='changeColor'></sketch-picker>
   </div>
 </div>
 </template>
 
 <script>
-import tinycolor from 'tinycolor2'
-import { Sketch } from 'vue-color'
+import { SketchPicker } from 'vue-color'
 import ClickOutside from './clickOutside.js'
 
 export default {
   name: 'vue-colorpicker',
-  components: {
-    'sketch-picker': Sketch,
-  },
+  components: { SketchPicker },
   directives: { ClickOutside },
   props: {
-    value: {
+    // Color in {r, g, b, a} format
+    modelValue: {
       type: Object,
     },
   },
+  emits: ['update:modelValue', 'change'],
   data () {
     return {
       showPicker: false,
-      colors: {
-        hex: '#FFFFFF',
-        a: 1
-      },
-      colorValue: '#FFFFFF',
       panelLeft: '0px',
       panelTop: '0px'
     }
   },
   computed: {
-    pickerType () {
-      return 'sketch-picker';
-    },
     isTransparent () {
-      return this.colors.a === 0;
+      return !this.modelValue || this.modelValue.a === 0;
     },
     btnStyle () {
       if (this.isTransparent) {
@@ -51,18 +42,13 @@ export default {
           backgroundSize: '22px 22px'
         }
       }
-      let {r, g, b, a} = this.colorValue;
+      let {r, g, b, a} = this.modelValue;
       return {
         background: `rgba(${r}, ${g}, ${b}, ${a})`
       }
     },
   },
   watch: {
-    value (val, oldVal) {
-      if (val !== oldVal) {
-        this.updateColorObject(val);
-      }
-    },
     showPicker(newVal) {
       if (!newVal) return;
 
@@ -87,36 +73,10 @@ export default {
     hide () {
       this.showPicker = false;
     },
-    changeColor (data) {
-      this.colorValue = data.rgba;
-      this.$emit('input', this.colorValue)
-      this.$emit('change', this.colorValue)
-    },
-    updateColorObject (color) {
-      if (!color) return
-      const colorObj = tinycolor(`rgba(${color.r}, ${color.g}, ${color.b}, ${color.a})` || 'transparent');
-      if (!color || color === 'transparent') {
-        this.colors = {
-          hex: '#FFFFFF',
-          hsl: { h: 0, s: 0, l: 1, a: 0 },
-          hsv: { h: 0, s: 0, v: 1, a: 0 },
-          rgba: { r: 255, g: 255, b: 255, a: 0 },
-          a: 0
-        };
-      } else {
-        this.colors = {
-          hex: colorObj.toHexString(),
-          hsl: colorObj.toHsl(),
-          hsv: colorObj.toHsv(),
-          rgba: colorObj.toRgb(),
-          a: colorObj.getAlpha()
-        };
-      }
-      this.colorValue = this.colors.rgba;
+    changeColor (color) {
+      this.$emit('update:modelValue', color)
+      this.$emit('change', color)
     }
-  },
-  mounted () {
-    this.updateColorObject(this.value)
   }
 }
 </script>

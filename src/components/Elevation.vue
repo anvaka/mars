@@ -1,5 +1,5 @@
 <template>
-  <a class='elevation' href='#' @click.prevent='toggleTheme'>
+  <a class='elevation' href='#' title='Change the colors of the map' @click.prevent='toggleTheme'>
     <div class='map-text header'>Elevation</div>
     <div class='canvas-container'>
       <div class='labels'>
@@ -10,8 +10,14 @@
   </a>
 </template>
 <script>
-import { createColorRampArray, toHexColorFromInt } from "../lib/createColorRampCanvas";
-import appState from '../appState';
+import { getColorStops } from '../lib/colorRamp.js';
+import appState from '../appState.js';
+
+// Range of the legend, in kilometers
+const LEGEND_FROM = -9;
+const LEGEND_TO = 21;
+const LEGEND_STEPS = 5;
+const LEGEND_HEIGHT = 160;
 
 export default {
   name: 'Elevation',
@@ -24,9 +30,8 @@ export default {
     }
   },
   computed: {
-      colorHeight() { return 160 },
       computedLabels() {
-        return getLabelsOffsets(160);
+        return getLabelsOffsets(LEGEND_HEIGHT);
       }
   },
   mounted() {
@@ -39,20 +44,24 @@ export default {
     updateCanvas() {
       let canvas = this.$refs.elevation;
       let ctx = canvas.getContext('2d');
-      let width = ctx.width = canvas.width = 22;
-      let height = ctx.height = canvas.height = this.colorHeight;
-      let colors = createColorRampArray(appState.theme);
+      let width = canvas.width = 22;
+      let height = canvas.height = LEGEND_HEIGHT;
+
+      // The legend uses the same color stops as the map does. Highest
+      // elevation is at the top:
+      let gradient = ctx.createLinearGradient(0, 0, 0, height);
+      getColorStops(appState.theme).forEach(stop => {
+        let offset = (LEGEND_TO - stop.elevation / 1000) / (LEGEND_TO - LEGEND_FROM);
+        gradient.addColorStop(Math.max(0, Math.min(1, offset)), stop.color);
+      });
 
       let dx = 8;
-      for (let i = 0; i < colors.length; ++i) {
-        let offset = Math.round((i / colors.length) * height);
-        ctx.fillStyle = toHexColorFromInt(colors[colors.length - i - 1]);
-        ctx.fillRect(dx + 1, offset, width -dx - 2, offset);
-      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(dx, 0, width - dx, height);
 
       ctx.fillStyle = 'black';
-      for (let i = 0; i <= 5; ++i) {
-        let offset = Math.round((i / 5) * height);
+      for (let i = 0; i <= LEGEND_STEPS; ++i) {
+        let offset = Math.round((i / LEGEND_STEPS) * height);
         ctx.fillRect(2, offset - (i === 0 ? 0 : 1), width, 1);
       }
 
@@ -63,18 +72,15 @@ export default {
 }
 
 function getLabelsOffsets(height) {
-  let from = -9;
-  let to = 21;
-  let count = 5;
   const halfFontSize = 8;
-  let dx = (to - from) / count;
+  let dx = (LEGEND_TO - LEGEND_FROM) / LEGEND_STEPS;
   let labels = [];
-  for (let i = 0; i <= count; ++i) {
+  for (let i = 0; i <= LEGEND_STEPS; ++i) {
     labels.push({
       style: {
-        top: (height * (i / count) - halfFontSize) + 'px'
+        top: (height * (i / LEGEND_STEPS) - halfFontSize) + 'px'
       },
-      title: `${to - i * dx}km`
+      title: `${LEGEND_TO - i * dx}km`
     });
   }
 

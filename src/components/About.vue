@@ -14,8 +14,8 @@
       to fix it.</p>
 
       <h3>Bonus</h3>
-      <p>After the map is generated you can print it on a mug to create a memorable gift.
-         This would also support your humble author of this website :).</p>
+      <p>The button with three ridges draws the place you look at as ridgelines. You can print them on a mug
+         to create a memorable gift. This would also support your humble author of this website :).</p>
       <ul>
         <li>
           Stay tuned for updates on <a href='https://twitter.com/anvaka' class='highlighted'>Twitter.</a>
@@ -48,7 +48,7 @@ export default {
     }
     document.addEventListener('keyup', this.closeHandler);
   },
-  beforeDestroy() {
+  beforeUnmount() {
     document.removeEventListener('keyup', this.closeHandler);
   },
   methods: {

@@ -1,0 +1,12 @@
+# Cloudflare Worker that serves the elevation tiles of Mars, see ./index.js
+#
+#   npx wrangler deploy --config tools/tiles-worker/wrangler.toml
+name = "mars-tiles"
+main = "index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+preview_urls = false
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "mars-map"

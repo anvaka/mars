@@ -25,7 +25,7 @@ export default {
       },
       {
         size: 0,
-        value: "#FFFFFFF"
+        value: "#FFFFFF"
       }
     ]
   },
@@ -201,10 +201,10 @@ export default {
     colorRamp: [
       {
         size: 1,
-        value: "#00000000"
+        value: "#000000"
       },
       {
-        value: "#FFFFFF00"
+        value: "#FFFFFF"
       }
     ]
   },
@@ -241,6 +241,23 @@ export default {
         value: "#FEFEFE"
       },
     ]
+  },
+  // Made to go with the shading of the slopes. The shade has to be visible
+  // on every color, so the palette never gets as dark as a shadow, nor as
+  // bright as a sunlit slope. Half of the colors are spent on the lowest
+  // third of the elevations: this is where most of the land is.
+  OCHRE: {
+    labelColor: "#ffffff",
+    haloColor: "#000000",
+    colorRamp: [
+      { size: 3, value: "#2E130D" },
+      { size: 3, value: "#5A2413" },
+      { size: 3, value: "#8C3A1E" },
+      { size: 3, value: "#B5552B" },
+      { size: 4.5, value: "#CF7A3E" },
+      { size: 6, value: "#E0A262" },
+      { size: 7.2, value: "#EDC690" },
+      { size: 0, value: "#F7E3BF" }
+    ]
   }
-
 };

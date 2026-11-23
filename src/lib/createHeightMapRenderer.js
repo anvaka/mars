@@ -2,13 +2,14 @@
  * This is the core component of the website which renders lines on the overlay
  * layer
  */
-import { getRegionElevation } from '../elevation';
+import { getRegionElevation } from '../elevation.js';
+import { getDemTileMaxZoom, decodeElevation } from '../tiles.js';
 
 
 /**
  * 
  * @param {*} appState - @see ../appState.js
- * @param {*} map  - mapbox map instance
+ * @param {*} map  - maplibre map instance
  * @param {*} canvas  - where the lines should be rendered
  */
 export default function createHeightMapRenderer(appState, map, canvas) {
@@ -31,8 +32,7 @@ export default function createHeightMapRenderer(appState, map, canvas) {
   function render() {
     // let's figure out the area where lines need to be rendered:
     const bounds = map.getBounds();
-    const zoom = Math.floor(map.getZoom(zoom));
-    appState.showPrintMessage = false;
+    const zoom = Math.min(Math.floor(map.getZoom()), getDemTileMaxZoom());
     appState.renderProgress = {
       message: '',
       isCancelled: false,
@@ -167,7 +167,6 @@ export default function createHeightMapRenderer(appState, map, canvas) {
     cancelAnimationFrame(renderHandle)
     isCancelled = true;
     appState.renderProgress = null;
-    appState.showPrintMessage = false;
   }
 
   /**
@@ -235,15 +234,9 @@ export default function createHeightMapRenderer(appState, map, canvas) {
     }
 
     function decodeHeight(R, G, B) {
-      // mars has 8 bit for color, so we don't care which component to take:
-      // if (Math.abs(R - G) > 1 || Math.abs(G - B) > 1) {
-      //   console.log('Height assumption is incorrect!')
-      // }
-      let zeroMarsPoint = 8200/(21229 + 8200) * 256;
-      let h = ((R - zeroMarsPoint) / 256) * (21229 + 8200); // scale to the range of Mars surface
+      let h = decodeElevation(R, G, B);
       if (h < oceanLevel) h = oceanLevel - 1;
       return h;
-      // https://geology.com/articles/highest-point-on-mars.shtml
     }
 
     function getMinMaxHeight() {
